@@ -89,24 +89,91 @@
  */
 export function prepareOrder(item, prepTime) {
   // Your code here
+
+  return new Promise((resolve, reject) => {
+    if (item === undefined || item == '' || item == null) {
+      reject(new Error('Item name required!'))
+
+    }
+
+    if (typeof prepTime != 'number' || prepTime <= 0) {
+      reject(new Error('Invalid prep time!'))
+    }
+
+    setTimeout(() => {
+      resolve({ item, ready: true, prepTime })
+    }, prepTime)
+  })
 }
+
 
 export function prepareBatch(items) {
   // Your code here
+  const promises = [];
+
+  for (const { name, prepTime } of items) {
+    promises.push(prepareOrder(name, prepTime))
+  }
+
+  return Promise.all(promises)
 }
+
 
 export function getFirstReady(items) {
   // Your code here
+
+  if (items.length === 0) {
+    return Promise.reject(new Error("No items to prepare!"))
+  }
+
+  return Promise.race(
+    items.map(({ name, prepTime }) => prepareOrder(name, prepTime))
+  )
 }
+
 
 export function prepareSafeBatch(items) {
   // Your code here
+  if (items.length === 0) return Promise.resolve([]);
+  const promises = items.map(i => prepareOrder(i.name, i.prepTime))
+  return Promise.allSettled(promises).then(results => {
+    return results.map(res => {
+      if (res.status === 'rejected') {
+        return { status: 'rejected', reason: res.reason.message };
+      }
+      return res;
+    });
+  });
 }
 
 export function deliverWithTimeout(orderPromise, timeoutMs) {
   // Your code here
+  if (typeof timeoutMs !== "number" || timeoutMs <= 0) {
+    return Promise.reject(new Error("Invalid timeout!"));
+  }
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error("Delivery timeout!"));
+    }, timeoutMs);
+  });
+  return Promise.race([orderPromise, timeoutPromise]);
 }
 
-export function batchWithRetry(items, maxRetries) {
+
+export async function batchWithRetry(items, maxRetries) {
   // Your code here
+
+  let errorMessage
+  for (let i = 0; i <= maxRetries; i++) {
+      try {
+        const result = await prepareBatch(items)
+
+        return result
+
+      } catch (error) {
+        errorMessage = error
+      }
+  }
+
+  throw errorMessage
 }
